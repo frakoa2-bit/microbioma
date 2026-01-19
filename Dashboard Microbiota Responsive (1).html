@@ -1,0 +1,1985 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Microbiota Intestinale</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --color-primary: #208080;
+            --color-primary-light: #38bdf8;
+            --color-bg: #0f172a;
+            --color-surface: #1e293b;
+            --color-text: #f1f5f9;
+            --color-text-secondary: #cbd5e1;
+            --color-success: #22c55e;
+            --color-error: #ef4444;
+            --color-warning: #f59e0b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: var(--color-primary-light);
+        }
+
+        .subtitle {
+            color: var(--color-text-secondary);
+            font-size: 1rem;
+        }
+
+        /* ===== CLICKABLE ELEMENTS ===== */
+        .clickable {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .clickable:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(56, 189, 248, 0.2);
+        }
+
+        .clickable::after {
+            content: "ℹ";
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 20px;
+            height: 20px;
+            background: var(--color-primary-light);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .clickable:hover::after {
+            opacity: 1;
+        }
+
+        /* ===== SUMMARY CARDS ===== */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: var(--color-surface);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .card-title {
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 10px;
+        }
+
+        .card-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .card-subtitle {
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+        }
+
+        .dysbiosis-badge {
+            display: inline-block;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .dysbiosis-moderate {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--color-warning);
+            border: 1px solid var(--color-warning);
+        }
+
+        .trend-positive {
+            color: var(--color-success);
+        }
+
+        .trend-negative {
+            color: var(--color-error);
+        }
+
+        /* ===== MAIN LAYOUT ===== */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        /* ===== SIDEBAR FILTERS ===== */
+        .sidebar {
+            background: var(--color-surface);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            height: fit-content;
+        }
+
+        .filter-group {
+            margin-bottom: 25px;
+        }
+
+        .filter-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--color-text);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            cursor: help;
+        }
+
+        select, input[type="checkbox"] {
+            width: 100%;
+            padding: 8px 12px;
+            background: var(--color-bg);
+            border: 1px solid rgba(148, 163, 184, 0.3);
+            color: var(--color-text);
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+
+        select:focus, input[type="checkbox"]:focus {
+            outline: none;
+            border-color: var(--color-primary-light);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.1);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        input[type="checkbox"] {
+            width: auto;
+        }
+
+        label {
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+        }
+
+        /* ===== CONTENT AREA ===== */
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .chart-container {
+            background: var(--color-surface);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .chart-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--color-primary-light);
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 300px;
+        }
+
+        /* ===== TABLE ===== */
+        .table-container {
+            background: var(--color-surface);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            grid-column: 1 / -1;
+        }
+
+        .table-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--color-primary-light);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        th {
+            background: var(--color-bg);
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--color-primary-light);
+            border-bottom: 2px solid rgba(148, 163, 184, 0.2);
+            cursor: help;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+            color: var(--color-text-secondary);
+        }
+
+        tr:hover td {
+            background: rgba(56, 189, 248, 0.05);
+        }
+
+        tbody tr {
+            cursor: pointer;
+        }
+
+        .trend-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.75rem;
+        }
+
+        .trend-up {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--color-success);
+        }
+
+        .trend-down {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--color-error);
+        }
+
+        /* ===== FOOTER ===== */
+        footer {
+            margin-top: 60px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(148, 163, 184, 0.2);
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+            text-align: center;
+        }
+
+        /* ===== MODAL ===== */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--color-surface);
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 1px solid var(--color-primary-light);
+            box-shadow: 0 20px 60px rgba(56, 189, 248, 0.3);
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            color: var(--color-primary-light);
+            margin: 0;
+        }
+
+        .modal-close {
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--color-text-secondary);
+            background: none;
+            border: none;
+            transition: color 0.3s;
+        }
+
+        .modal-close:hover {
+            color: var(--color-primary-light);
+        }
+
+        .modal-content {
+            color: var(--color-text-secondary);
+            line-height: 1.8;
+        }
+
+        .modal-content h3 {
+            color: var(--color-primary-light);
+            margin-top: 15px;
+            margin-bottom: 8px;
+        }
+
+        .modal-content p {
+            margin-bottom: 12px;
+        }
+
+        .modal-content ul {
+            margin-left: 20px;
+            margin-bottom: 12px;
+        }
+
+        .modal-content li {
+            margin-bottom: 6px;
+        }
+
+        .modal-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 15px;
+        }
+
+        .modal-warning {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--color-warning);
+            border: 1px solid var(--color-warning);
+        }
+
+        /* ===== RESPONSIVE ===== */
+        /* ===== RESPONSIVE DESIGN - ENHANCED ===== */
+        
+        /* TABLET: 1024px and below */
+        @media (max-width: 1024px) {
+            .container {
+                padding: 16px;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            .subtitle {
+                font-size: 0.9rem;
+            }
+
+            .summary-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 16px;
+                margin-bottom: 32px;
+            }
+
+            .card {
+                padding: 16px;
+            }
+
+            .card-title {
+                font-size: 0.8rem;
+            }
+
+            .card-value {
+                font-size: 1.5rem;
+            }
+
+            .main-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .content {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .sidebar {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 16px;
+                height: auto;
+            }
+
+            .filter-group {
+                margin-bottom: 0;
+            }
+
+            .chart-wrapper {
+                height: 280px;
+            }
+
+            .chart-title {
+                font-size: 1.1rem;
+            }
+
+            .analysis-section {
+                padding: 16px;
+                margin-bottom: 16px;
+            }
+
+            .info-grid {
+                grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+                gap: 12px;
+            }
+
+            .section-title {
+                font-size: 1rem;
+            }
+
+            table {
+                font-size: 0.8rem;
+            }
+
+            th, td {
+                padding: 10px 8px;
+            }
+
+            .modal {
+                margin: 20px;
+                max-width: calc(100% - 40px);
+                padding: 24px;
+            }
+        }
+
+        /* MOBILE LANDSCAPE: 768px and below */
+        @media (max-width: 768px) {
+            .container {
+                padding: 12px;
+                max-width: 100%;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+                margin-bottom: 8px;
+            }
+
+            .subtitle {
+                font-size: 0.8rem;
+                line-height: 1.4;
+            }
+
+            header {
+                margin-bottom: 24px;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                margin-bottom: 24px;
+            }
+
+            .card {
+                padding: 12px;
+            }
+
+            .card-title {
+                font-size: 0.75rem;
+                margin-bottom: 6px;
+            }
+
+            .card-value {
+                font-size: 1.3rem;
+            }
+
+            .card-subtitle {
+                font-size: 0.75rem;
+            }
+
+            .dysbiosis-badge {
+                font-size: 0.7rem;
+                padding: 6px 10px;
+                margin-top: 8px;
+            }
+
+            .sidebar {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                padding: 12px;
+            }
+
+            .filter-label {
+                font-size: 0.8rem;
+                margin-bottom: 6px;
+            }
+
+            select, input[type="checkbox"] {
+                padding: 6px 10px;
+                font-size: 0.8rem;
+            }
+
+            .chart-container {
+                padding: 12px;
+            }
+
+            .chart-title {
+                font-size: 1rem;
+                margin-bottom: 12px;
+            }
+
+            .chart-wrapper {
+                height: 200px;
+            }
+
+            .analysis-section {
+                padding: 12px;
+                margin-bottom: 12px;
+            }
+
+            .section-header {
+                padding: 8px;
+            }
+
+            .section-title {
+                font-size: 0.95rem;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .info-box {
+                padding: 12px;
+            }
+
+            .info-label {
+                font-size: 0.8rem;
+            }
+
+            .info-value {
+                font-size: 0.95rem;
+            }
+
+            .interpretation {
+                font-size: 0.85rem;
+            }
+
+            .recommendation {
+                padding: 12px;
+                margin-top: 12px;
+            }
+
+            .recommendation-title {
+                font-size: 0.9rem;
+                margin-bottom: 8px;
+            }
+
+            .recommendation ul {
+                margin-left: 16px;
+            }
+
+            .recommendation li {
+                font-size: 0.85rem;
+                margin-bottom: 4px;
+            }
+
+            .problem-badge {
+                padding: 4px 8px;
+                font-size: 0.7rem;
+                margin-right: 6px;
+                margin-bottom: 6px;
+            }
+
+            table {
+                font-size: 0.75rem;
+            }
+
+            th {
+                padding: 8px 6px;
+                font-size: 0.75rem;
+            }
+
+            td {
+                padding: 8px 6px;
+            }
+
+            .table-container {
+                padding: 12px;
+                overflow-x: auto;
+            }
+
+            .table-title {
+                font-size: 1rem;
+            }
+
+            /* Scrollable table on small screens */
+            table {
+                min-width: 600px;
+            }
+
+            .modal {
+                padding: 16px;
+                border-radius: 8px;
+                max-width: calc(100% - 24px);
+                max-height: 90vh;
+            }
+
+            .modal-header {
+                margin-bottom: 16px;
+                padding-bottom: 12px;
+            }
+
+            .modal-title {
+                font-size: 1.2rem;
+            }
+
+            .modal-close {
+                font-size: 20px;
+            }
+
+            .modal-content {
+                font-size: 0.9rem;
+            }
+
+            .modal-content h3 {
+                margin-top: 12px;
+                font-size: 1rem;
+            }
+
+            .modal-content p {
+                margin-bottom: 10px;
+            }
+
+            .modal-content ul {
+                margin-left: 16px;
+            }
+
+            .value-range {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+
+            footer {
+                margin-top: 40px;
+                padding-top: 16px;
+                font-size: 0.8rem;
+            }
+
+            footer p {
+                margin-bottom: 4px;
+            }
+        }
+
+        /* SMALL MOBILE: 480px and below */
+        @media (max-width: 480px) {
+            .container {
+                padding: 8px;
+            }
+
+            h1 {
+                font-size: 1.25rem;
+            }
+
+            .subtitle {
+                font-size: 0.75rem;
+            }
+
+            .summary-grid {
+                gap: 8px;
+                margin-bottom: 16px;
+            }
+
+            .card {
+                padding: 10px;
+            }
+
+            .card-title {
+                font-size: 0.7rem;
+            }
+
+            .card-value {
+                font-size: 1.1rem;
+            }
+
+            .chart-wrapper {
+                height: 160px;
+            }
+
+            .sidebar {
+                gap: 8px;
+                padding: 8px;
+            }
+
+            select, input[type="checkbox"] {
+                padding: 4px 8px;
+                font-size: 0.75rem;
+            }
+
+            .chart-container {
+                padding: 8px;
+            }
+
+            .analysis-section {
+                padding: 8px;
+                margin-bottom: 8px;
+            }
+
+            .section-title {
+                font-size: 0.9rem;
+            }
+
+            .info-grid {
+                gap: 8px;
+            }
+
+            .info-box {
+                padding: 10px;
+            }
+
+            .info-label {
+                font-size: 0.75rem;
+            }
+
+            .info-value {
+                font-size: 0.9rem;
+            }
+
+            .recommendation {
+                padding: 10px;
+            }
+
+            table {
+                font-size: 0.7rem;
+                min-width: 500px;
+            }
+
+            th, td {
+                padding: 6px 4px;
+            }
+
+            .modal {
+                padding: 12px;
+                max-width: calc(100% - 16px);
+            }
+
+            .modal-title {
+                font-size: 1rem;
+            }
+
+            .modal-close {
+                font-size: 18px;
+            }
+        }
+
+        /* EXTRA SMALL: 360px and below */
+        @media (max-width: 360px) {
+            h1 {
+                font-size: 1.1rem;
+            }
+
+            .subtitle {
+                font-size: 0.7rem;
+            }
+
+            .card-value {
+                font-size: 1rem;
+            }
+
+            .chart-wrapper {
+                height: 140px;
+            }
+
+            table {
+                font-size: 0.65rem;
+                min-width: 450px;
+            }
+
+            th, td {
+                padding: 4px 3px;
+            }
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--color-text-secondary);
+        }
+
+        /* ===== COLLAPSIBLE SECTIONS ===== */
+        .analysis-section {
+            background: var(--color-surface);
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            margin-bottom: 20px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            padding: 10px;
+            background: rgba(56, 189, 248, 0.05);
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .section-header:hover {
+            background: rgba(56, 189, 248, 0.1);
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--color-primary-light);
+            margin: 0;
+        }
+
+        .toggle-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s ease;
+            color: var(--color-primary-light);
+        }
+
+        .toggle-icon.open {
+            transform: rotate(180deg);
+        }
+
+        .section-content {
+            display: none;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(148, 163, 184, 0.2);
+        }
+
+        .section-content.open {
+            display: block;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .info-box {
+            background: rgba(56, 189, 248, 0.05);
+            border-left: 4px solid var(--color-primary-light);
+            padding: 15px;
+            border-radius: 6px;
+        }
+
+        .info-label {
+            font-size: 0.85rem;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .info-value {
+            font-size: 1rem;
+            color: var(--color-text);
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
+        .interpretation {
+            font-size: 0.9rem;
+            color: var(--color-text-secondary);
+            font-style: italic;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(148, 163, 184, 0.1);
+        }
+
+        .recommendation {
+            background: rgba(34, 197, 94, 0.1);
+            border-left: 4px solid var(--color-success);
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+
+        .recommendation-title {
+            color: var(--color-success);
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        .recommendation ul {
+            margin: 8px 0 0 20px;
+            padding: 0;
+        }
+
+        .recommendation li {
+            margin-bottom: 6px;
+            color: var(--color-text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .problem-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+
+        .problem-high {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--color-error);
+            border: 1px solid var(--color-error);
+        }
+
+        .problem-medium {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--color-warning);
+            border: 1px solid var(--color-warning);
+        }
+
+        .problem-low {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--color-success);
+            border: 1px solid var(--color-success);
+        }
+
+        .value-range {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-top: 12px;
+            font-size: 0.85rem;
+        }
+
+        .range-item {
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .range-low {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--color-error);
+        }
+
+        .range-normal {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--color-success);
+        }
+
+        .range-high {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--color-warning);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Dashboard Microbiota Intestinale</h1>
+            <p class="subtitle">Analisi NGS 16S rRNA con confronto controlli | Paziente: 04093091 | Referto: 13/01/2026</p>
+        </header>
+
+        <!-- SUMMARY CARDS -->
+        <div class="summary-grid">
+            <div class="card clickable" onclick="showModal('dysbiosis')">
+                <div class="card-title">Livello Disbiosi</div>
+                <div class="card-value">MODERATO</div>
+                <div class="dysbiosis-badge dysbiosis-moderate">26% (algoritmo di ricerca)</div>
+                <div class="card-subtitle">Microbiota disbiosi intestinale</div>
+            </div>
+
+            <div class="card clickable" onclick="showModal('taxa-plus')">
+                <div class="card-title">Taxa Aumentati</div>
+                <div class="card-value trend-positive" id="taxa-plus">36</div>
+                <div class="card-subtitle">Unità tassonomiche +</div>
+            </div>
+
+            <div class="card clickable" onclick="showModal('taxa-minus')">
+                <div class="card-title">Taxa Ridotti</div>
+                <div class="card-value trend-negative" id="taxa-minus">22</div>
+                <div class="card-subtitle">Unità tassonomiche -</div>
+            </div>
+
+            <div class="card clickable" onclick="showModal('patient-id')">
+                <div class="card-title">ID Paziente</div>
+                <div class="card-value" style="font-size: 1.5rem;">04093091</div>
+                <div class="card-subtitle">Analisi: 23/12/2025</div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <!-- SIDEBAR FILTERS -->
+            <aside class="sidebar">
+                <div class="filter-group">
+                    <label class="filter-label" onclick="showModal('level-help')">Livello Tassonomico ❓</label>
+                    <select id="level-select">
+                        <option value="phylum">Phylum</option>
+                        <option value="family">Famiglia</option>
+                        <option value="genus" selected>Genere</option>
+                        <option value="species">Specie</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label" onclick="showModal('trend-help')">Andamento ❓</label>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="trend-all" checked onchange="updateChart()">
+                        <label for="trend-all">Tutti</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="trend-plus" checked onchange="updateChart()">
+                        <label for="trend-plus">Aumentati (+)</label>
+                    </div>
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="trend-minus" checked onchange="updateChart()">
+                        <label for="trend-minus">Ridotti (-)</label>
+                    </div>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label" for="phylum-filter" onclick="showModal('phylum-help')">Filtra Phylum ❓</label>
+                    <select id="phylum-filter" onchange="updateChart()">
+                        <option value="">Tutti</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label class="filter-label" for="min-abundance" onclick="showModal('abundance-help')">Min Abbondanza ❓</label>
+                    <input type="number" id="min-abundance" step="0.0001" value="0" onchange="updateChart()">
+                </div>
+            </aside>
+
+            <!-- MAIN CONTENT -->
+            <div class="content">
+                <div class="chart-container clickable" onclick="showModal('comparison-chart')">
+                    <h3 class="chart-title">Confronto Paziente vs Controlli</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="comparison-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container clickable" onclick="showModal('delta-chart')">
+                    <h3 class="chart-title">Differenza Paziente - Controlli</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="delta-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CLINICAL ANALYSIS SECTION -->
+        <div class="analysis-section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <h2 class="section-title">📊 Analisi Clinica Dettagliata</h2>
+                <div class="toggle-icon">▼</div>
+            </div>
+            <div class="section-content">
+                <div class="info-grid">
+                    <div class="info-box" onclick="showModal('analysis-dysbiosis')">
+                        <div class="info-label">Disbiosi: Moderata (26%)</div>
+                        <div class="info-value">⚠️ Squilibrio Significativo</div>
+                        <div class="interpretation">
+                            Questo valore indica un'alterazione della composizione del microbiota. Con moderata gravità, è presente ma non critica. Richiede attenzione e intervento.
+                        </div>
+                    </div>
+
+                    <div class="info-box" onclick="showModal('analysis-ratio')">
+                        <div class="info-label">Rapporto Firmicutes/Bacteroidetes</div>
+                        <div class="info-value">1:42 (INVERTITO)</div>
+                        <div class="interpretation">
+                            Normalmente: 1:1 a 1:3. Nel paziente Bacteroidetes dominano massiccamente. Indica sovracrescita di batteri fermentanti carboidrati.
+                        </div>
+                    </div>
+
+                    <div class="info-box" onclick="showModal('analysis-scfa')">
+                        <div class="info-label">Produzione SCFA</div>
+                        <div class="info-value">🔴 RIDOTTA</div>
+                        <div class="interpretation">
+                            Firmicutes ridotti = minore produzione di acidi grassi a catena corta. Compromette la barriera intestinale e causa infiammazione.
+                        </div>
+                    </div>
+
+                    <div class="info-box" onclick="showModal('analysis-pathobionts')">
+                        <div class="info-label">Proteobatteri Presenti</div>
+                        <div class="info-value">🟠 Escherichia, Klebsiella</div>
+                        <div class="interpretation">
+                            Proteobatteri gram-negativi in aumento. Normalmente <1%, qui dominano. Potenzialmente pro-infiammatori se non controllati.
+                        </div>
+                    </div>
+
+                    <div class="info-box" onclick="showModal('analysis-benefici')">
+                        <div class="info-label">Batteri Benefici Ridotti</div>
+                        <div class="info-value">🔴 Actinobacteria -97.8%</div>
+                        <div class="interpretation">
+                            Attinobatteri quasi assenti. Questi producono antibiotici naturali e proteggono dalla colonizzazione patogena. La riduzione è critica.
+                        </div>
+                    </div>
+
+                    <div class="info-box" onclick="showModal('analysis-butyrate')">
+                        <div class="info-label">Produttori di Butirrato</div>
+                        <div class="info-value">🟠 COMPROMESSI</div>
+                        <div class="interpretation">
+                            Ruminococcus (-81%), Roseburia (alcuni presenti). Il butirrato è essenziale per la salute delle cellule intestinali e regolazione immunitaria.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="recommendation">
+                    <div class="recommendation-title">🎯 Problemi Identificati</div>
+                    <span class="problem-badge problem-high">Disbiosi Moderata</span>
+                    <span class="problem-badge problem-high">Proteobatteri Elevati</span>
+                    <span class="problem-badge problem-high">Actinobacteria Quasi Assenti</span>
+                    <span class="problem-badge problem-medium">Firmicutes Insufficienti</span>
+                    <span class="problem-badge problem-medium">Bacteroidetes Prevalenti</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- IMPROVEMENT STRATEGIES SECTION -->
+        <div class="analysis-section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <h2 class="section-title">💊 Strategie di Miglioramento Evidence-Based</h2>
+                <div class="toggle-icon">▼</div>
+            </div>
+            <div class="section-content">
+                <div class="recommendation">
+                    <div class="recommendation-title">1️⃣ Dieta Prebiotica (3-6 mesi)</div>
+                    <ul>
+                        <li><strong>Obiettivo:</strong> Aumentare Firmicutes benefici e Actinobacteria</li>
+                        <li><strong>Fibra insolubile:</strong> Crusca, avena, orzo (15-20g/giorno)</li>
+                        <li><strong>Inulina/FOS:</strong> Cicoria, aglio, cipolla, banana (2-3g/giorno)</li>
+                        <li><strong>Polifenoli:</strong> Mirtilli, melagrana, tè verde (ricchi di antiossidanti)</li>
+                        <li><strong>Carciofi e asparagi:</strong> Stimolano crescita Actinobacteria</li>
+                        <li><strong>Evitare:</strong> Zuccheri semplici, ultraprocessati (alimentano Proteobatteri)</li>
+                    </ul>
+                </div>
+
+                <div class="recommendation">
+                    <div class="recommendation-title">2️⃣ Probiotici Mirati (8-12 settimane)</div>
+                    <ul>
+                        <li><strong>Per Actinobacteria:</strong> Bifidobacterium longum, B. breve</li>
+                        <li><strong>Per Firmicutes benefici:</strong> Faecalibacterium prausnitzii, Roseburia</li>
+                        <li><strong>Per equilibrio:</strong> Combinazione con Bacteroides uniformis</li>
+                        <li><strong>Dosaggio:</strong> 10-50 miliardi CFU/giorno (dividere i ceppi)</li>
+                        <li><strong>Durata:</strong> Minimo 8 settimane, poi valutare con retest</li>
+                    </ul>
+                </div>
+
+                <div class="recommendation">
+                    <div class="recommendation-title">3️⃣ Controllo Proteobatteri (Simultaneo)</div>
+                    <ul>
+                        <li><strong>Ridurre trigger:</strong> Stress, infezioni, farmaci (antibiotici solo se necessari)</li>
+                        <li><strong>Aumentare barriera:</strong> Glutammina, zinco, vitamina D</li>
+                        <li><strong>Polifenoli antimicrobici:</strong> Resveratrolo, quercetina (tè, frutti rossi)</li>
+                        <li><strong>Evitare:</strong> Emulsionanti, dolcificanti artificiali (favoriscono disbiosi)</li>
+                        <li><strong>Monitorare:</strong> Se sintomi intestinali persistono, valutare con medico</li>
+                    </ul>
+                </div>
+
+                <div class="recommendation">
+                    <div class="recommendation-title">4️⃣ Stile di Vita Protettivo</div>
+                    <ul>
+                        <li><strong>Sonno:</strong> 7-8 ore/notte (il sonno regola microbiota via asse circadiano)</li>
+                        <li><strong>Attività fisica:</strong> 30 min/giorno di camminata veloce (aumenta diversità microbica)</li>
+                        <li><strong>Stress:</strong> Meditazione, yoga (asse intestino-cervello critico)</li>
+                        <li><strong>Microbiota secondario:</strong> Alimenti fermentati (kimchi, tempeh, kefir)</li>
+                        <li><strong>Idratazione:</strong> 2-3 litri acqua/giorno (essenziale per motilità intestinale)</li>
+                    </ul>
+                </div>
+
+                <div class="recommendation">
+                    <div class="recommendation-title">5️⃣ Monitoraggio e Follow-up</div>
+                    <ul>
+                        <li><strong>Retest NGS 16S:</strong> A 3 mesi (valutare risposta al trattamento)</li>
+                        <li><strong>Sintomi:</strong> Tenere diario (gonfiore, regolarità, energia)</li>
+                        <li><strong>Test secondari:</strong> Calprotectina fecale (infiammazione), SCFA (funzione)</li>
+                        <li><strong>Timeline realistica:</strong> 6-12 mesi per stabilizzazione completa</li>
+                        <li><strong>Consultare:</strong> Gastroenterologo o nutrizionista specializzato</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAXA-SPECIFIC INSIGHTS SECTION -->
+        <div class="analysis-section">
+            <div class="section-header" onclick="toggleSection(this)">
+                <h2 class="section-title">🔬 Interpretazione Taxa Specifici Critici</h2>
+                <div class="toggle-icon">▼</div>
+            </div>
+            <div class="section-content">
+                <div class="info-grid">
+                    <div class="info-box" onclick="showModal('taxa-bacteroides')">
+                        <div class="info-label">Bacteroides (27.5% vs 12.8%)</div>
+                        <div class="info-value">🟠 +114% AUMENTATO</div>
+                        <div class="interpretation">
+                            Normalmente moderato. In questo paziente ha dominanza patologica. Fermenta carboidrati in eccesso, ma quando prevale causa infiammazione intestinale cronica.
+                        </div>
+                    </div>
+
+                    <div class="info-box" onclick="showModal('taxa-prevotella')">
+                        <div class="info-label">Prevotella copri (16.9% vs 3.5%)</div>
+                        <div class="info-value">🟠 +383% AUMENTATO</div>
+                        <div class="interpretation">
+                            Prevotella copri è associato a diete ad alto contenuto di carboidrati. Livelli elevati correlano con infiammazione articolare e intestinale cronica.
+                        </div>
+                    </div>
+
+                    <div class="info-box" onclick="showModal('taxa-actino')">
+                        <div class="info-label">Actinobacteria (0.08% vs 3.9%)</div>
+                        <div class="info-value">🔴 -97.8% CRITICO</div>
+                        <div class="interpretation">
+                            Quasi completamente assenti. Questi batteri producono lantibiotici (defensina-simili) che proteggono dalla colonizzazione patogena. La loro assenza è la più preoccupante.
+                        </div>
+                    </div>
+
+                    <div class="info-box" onclick="showModal('taxa-ruminococcus')">
+                        <div class="info-label">Ruminococcus (0.9% vs 4.9%)</div>
+                        <div class="info-value">🔴 -81.6% CRITICO</div>
+                        <div class="interpretation">
+                            Produttore di butirrato essenziale. La sua riduzione massiccia causa perdita di mucosa intestinale sana, aumentando permeabilità e infiammazione.
+                        </div>
+                    </div>
+
+                    <div class="info-box" onclick="showModal('taxa-firmicutes')">
+                        <div class="info-label">Firmicutes Totali (1.2% vs 1.9%)</div>
+                        <div class="info-value">🟠 -35% RIDOTTO</div>
+                        <div class="interpretation">
+                            Globalmente insufficienti. Sono i produttori principali di SCFA. La loro riduzione è una delle cause principali della disbiosi osservata.
+                        </div>
+                    </div>
+
+                    <div class="info-box" onclick="showModal('taxa-proteobacteria')">
+                        <div class="info-label">Proteobacteria (0.07% vs 0.001%)</div>
+                        <div class="info-value">🟠 +5,570% CRITICO</div>
+                        <div class="interpretation">
+                            Aumentati di >5000%. E. coli, Klebsiella sono gram-negativi, producono LPS (endotossina). Questo spiega la possibile infiammazione cronica.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DATA TABLE -->
+        <div class="table-container">
+            <h3 class="table-title">Dettagli Taxa</h3>
+            <table id="data-table">
+                <thead>
+                    <tr>
+                        <th onclick="showModal('col-phylum')">Phylum ❓</th>
+                        <th onclick="showModal('col-family')">Famiglia ❓</th>
+                        <th onclick="showModal('col-genus')">Genere ❓</th>
+                        <th onclick="showModal('col-species')">Specie ❓</th>
+                        <th onclick="showModal('col-patient')">Paziente ❓</th>
+                        <th onclick="showModal('col-control')">Controlli ❓</th>
+                        <th onclick="showModal('col-trend')">Andamento ❓</th>
+                        <th onclick="showModal('col-delta')">Δ ❓</th>
+                        <th onclick="showModal('col-delta-pct')">Δ % ❓</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <footer>
+        <p>Dati derivati da analisi NGS 16S del microbiota intestinale (Ospedale Pediatrico Bambino Gesù - Roma)</p>
+        <p>Disbiosi: moderata (26%) | Metodo: metagenomico 16S rRNA | Referto ID: 15970830</p>
+    </footer>
+
+    <!-- MODAL -->
+    <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modal-title">Informazione</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-content" id="modal-content">
+                Contenuto
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== DATASET MICROBIOTA =====
+        const microbiota = [
+            // Phyla
+            {level: "phylum", phylum: "Actinobacteria", family: null, genus: null, species: null, patient: 0.000832562, control: 0.038800221, trend: "-"},
+            {level: "phylum", phylum: "Bacteroidetes", family: null, genus: null, species: null, patient: 0.503875844, control: 0.183108376, trend: "+"},
+            {level: "phylum", phylum: "Firmicutes", family: null, genus: null, species: null, patient: 0.012016, control: 0.018585, trend: "-"},
+            {level: "phylum", phylum: "Proteobacteria", family: null, genus: null, species: null, patient: 0.000718494, control: 0.000012563, trend: "+"},
+
+            // Famiglie
+            {level: "family", phylum: "Actinobacteria", family: "Actinomycetaceae", genus: null, species: null, patient: 0.000007309, control: 0.00064657, trend: "-"},
+            {level: "family", phylum: "Actinobacteria", family: "Coriobacteriaceae", genus: null, species: null, patient: 0.000825253, control: 0.038153651, trend: "-"},
+            {level: "family", phylum: "Bacteroidetes", family: "Bacteroidaceae", genus: null, species: null, patient: 0.2749503, control: 0.128228455, trend: "+"},
+            {level: "family", phylum: "Bacteroidetes", family: "Porphyromonadaceae", genus: null, species: null, patient: 0.041571367, control: 0.010711189, trend: "+"},
+            {level: "family", phylum: "Bacteroidetes", family: "Prevotellaceae", genus: null, species: null, patient: 0.187354177, control: 0.044168732, trend: "+"},
+            {level: "family", phylum: "Firmicutes", family: "Erysipelotrichaceae", genus: null, species: null, patient: 0.000716752, control: 0.013126713, trend: "-"},
+            {level: "family", phylum: "Firmicutes", family: "Eubacteriaceae", genus: null, species: null, patient: 0, control: 0.000045907, trend: "-"},
+            {level: "family", phylum: "Firmicutes", family: "Turicibacteraceae", genus: null, species: null, patient: 0.000007254, control: 0.001104604, trend: "-"},
+            {level: "family", phylum: "Proteobacteria", family: "Comamonadaceae", genus: null, species: null, patient: 0.000359247, control: 0.000012563, trend: "+"},
+
+            // Generi
+            {level: "genus", phylum: "Actinobacteria", family: null, genus: "Actinomyces", species: null, patient: 0.000007309, control: 0.000636546, trend: "-"},
+            {level: "genus", phylum: "Actinobacteria", family: null, genus: "Collinsella", species: null, patient: 0.000487386, control: 0.029141059, trend: "-"},
+            {level: "genus", phylum: "Actinobacteria", family: null, genus: "Eggerthella", species: null, patient: 0.000003627, control: 0.001606682, trend: "-"},
+            {level: "genus", phylum: "Bacteroidetes", family: null, genus: "Bacteroides", species: null, patient: 0.2749143, control: 0.128181763, trend: "+"},
+            {level: "genus", phylum: "Bacteroidetes", family: null, genus: "Barnesiella", species: null, patient: 0.000762871, control: 0.000071873, trend: "+"},
+            {level: "genus", phylum: "Bacteroidetes", family: null, genus: "Macellibacteroides", species: null, patient: 0.000226537, control: 0, trend: "+"},
+            {level: "genus", phylum: "Bacteroidetes", family: null, genus: "Odoribacter", species: null, patient: 0.003805234, control: 0.000680424, trend: "+"},
+            {level: "genus", phylum: "Bacteroidetes", family: null, genus: "Paludibacter", species: null, patient: 0.000035796, control: 0.000000414, trend: "+"},
+            {level: "genus", phylum: "Bacteroidetes", family: null, genus: "Parabacteroides", species: null, patient: 0.040104857, control: 0.010648915, trend: "+"},
+            {level: "genus", phylum: "Bacteroidetes", family: null, genus: "Paraprevotella", species: null, patient: 0.014208745, control: 0.000951933, trend: "+"},
+            {level: "genus", phylum: "Firmicutes", family: null, genus: "Acidaminococcus", species: null, patient: 0.001408125, control: 0.000452098, trend: "+"},
+            {level: "genus", phylum: "Firmicutes", family: null, genus: "Bulleidia", species: null, patient: 0, control: 0.000945435, trend: "-"},
+            {level: "genus", phylum: "Firmicutes", family: null, genus: "Christensenella", species: null, patient: 0, control: 0.000113776, trend: "-"},
+            {level: "genus", phylum: "Firmicutes", family: null, genus: "Eubacterium", species: null, patient: 0.000039941, control: 0.003974898, trend: "-"},
+            {level: "genus", phylum: "Firmicutes", family: null, genus: "Lachnobacterium", species: null, patient: 0.000047029, control: 0.00027953, trend: "-"},
+            {level: "genus", phylum: "Firmicutes", family: null, genus: "Lachnospira", species: null, patient: 0.00133362, control: 0.000267978, trend: "+"},
+            {level: "genus", phylum: "Firmicutes", family: null, genus: "Pseudobutyrivibrio", species: null, patient: 0.000348312, control: 0, trend: "+"},
+            {level: "genus", phylum: "Firmicutes", family: null, genus: "Ruminococcus", species: null, patient: 0.009004864, control: 0.049026602, trend: "-"},
+            {level: "genus", phylum: "Firmicutes", family: null, genus: "Subdoligranulum", species: null, patient: 0.000090707, control: 0, trend: "+"},
+            {level: "genus", phylum: "Firmicutes", family: null, genus: "Turicibacter", species: null, patient: 0.000007254, control: 0.001104604, trend: "-"},
+            {level: "genus", phylum: "Proteobacteria", family: null, genus: "Enterobacter", species: null, patient: 0.000510673, control: 0, trend: "+"},
+            {level: "genus", phylum: "Proteobacteria", family: null, genus: "Escherichia", species: null, patient: 0.000097981, control: 0, trend: "+"},
+            {level: "genus", phylum: "Proteobacteria", family: null, genus: "Klebsiella", species: null, patient: 0.000731721, control: 0, trend: "+"},
+            {level: "genus", phylum: "Proteobacteria", family: null, genus: "Shigella", species: null, patient: 0.000101608, control: 0, trend: "+"},
+
+            // Specie
+            {level: "species", phylum: "Actinobacteria", family: null, genus: "Collinsella", species: "Collinsella aerofaciens", patient: 0.000345286, control: 0.027680237, trend: "-"},
+            {level: "species", phylum: "Actinobacteria", family: null, genus: "Eggerthella", species: "Eggerthella lenta", patient: 0.000003627, control: 0.001600299, trend: "-"},
+            {level: "species", phylum: "Bacteroidetes", family: null, genus: "Alistipes", species: "Alistipes finegoldii", patient: 0.002525079, control: 0.000361499, trend: "+"},
+            {level: "species", phylum: "Bacteroidetes", family: null, genus: "Alistipes", species: "Alistipes indistinctus", patient: 0.007875202, control: 0.000757835, trend: "+"},
+            {level: "species", phylum: "Bacteroidetes", family: null, genus: "Alistipes", species: "Alistipes massiliensis", patient: 0.005087046, control: 0.000029065, trend: "+"},
+            {level: "species", phylum: "Bacteroidetes", family: null, genus: "Alistipes", species: "Alistipes putredinis", patient: 0.000053986, control: 0.006721732, trend: "-"},
+            {level: "species", phylum: "Bacteroidetes", family: null, genus: "Bacteroides", species: "Bacteroides ovatus", patient: 0.013376047, control: 0.011890504, trend: "+"},
+            {level: "species", phylum: "Bacteroidetes", family: null, genus: "Barnesiella", species: "Barnesiella viscericola", patient: 0.000145265, control: 0.000001211, trend: "+"},
+            {level: "species", phylum: "Bacteroidetes", family: null, genus: "Macellibacteroides", species: "Macellibacteroides fermentans", patient: 0.000226537, control: 0, trend: "+"},
+            {level: "species", phylum: "Bacteroidetes", family: null, genus: "Parabacteroides", species: "Parabacteroides distasonis", patient: 0.000010936, control: 0.006335112, trend: "-"},
+            {level: "species", phylum: "Bacteroidetes", family: null, genus: "Prevotella", species: "Prevotella copri", patient: 0.169752123, control: 0.03522311, trend: "+"},
+            {level: "species", phylum: "Firmicutes", family: null, genus: "Blautia", species: "Blautia producta", patient: 0.000097795, control: 0.00016315, trend: "-"},
+            {level: "species", phylum: "Firmicutes", family: null, genus: "Clostridium", species: "Clostridium disporicum", patient: 0.000050535, control: 0, trend: "+"},
+            {level: "species", phylum: "Firmicutes", family: null, genus: "Clostridium", species: "Clostridium lavalense", patient: 0.000083453, control: 0.000013594, trend: "+"},
+            {level: "species", phylum: "Firmicutes", family: null, genus: "Clostridium", species: "Clostridium symbiosum", patient: 0.000057668, control: 0.000006494, trend: "+"},
+            {level: "species", phylum: "Firmicutes", family: null, genus: "Eubacterium", species: "Eubacterium dolichum", patient: 0, control: 0.000266279, trend: "-"},
+            {level: "species", phylum: "Firmicutes", family: null, genus: "Pseudobutyrivibrio", species: "Pseudobutyrivibrio xylanivorans", patient: 0.000348312, control: 0, trend: "+"},
+            {level: "species", phylum: "Firmicutes", family: null, genus: "Roseburia", species: "Roseburia faecis", patient: 0.007963326, control: 0.000051947, trend: "+"},
+            {level: "species", phylum: "Firmicutes", family: null, genus: "Roseburia", species: "Roseburia inulinivorans", patient: 0.000346369, control: 0.000003847, trend: "+"},
+            {level: "species", phylum: "Firmicutes", family: null, genus: "Ruminococcus", species: "Ruminococcus albus", patient: 0.001986954, control: 0, trend: "+"},
+            {level: "species", phylum: "Firmicutes", family: null, genus: "Ruminococcus", species: "Ruminococcus bromii", patient: 0.000003627, control: 0.023635966, trend: "-"},
+            {level: "species", phylum: "Firmicutes", family: null, genus: "Ruminococcus", species: "Ruminococcus lactaris", patient: 0.000529611, control: 0.000000609, trend: "+"},
+            {level: "species", phylum: "Firmicutes", family: null, genus: "Subdoligranulum", species: "Subdoligranulum variabile", patient: 0.000090707, control: 0, trend: "+"},
+            {level: "species", phylum: "Firmicutes", family: null, genus: "Veillonella", species: "Veillonella parvula", patient: 0.001024862, control: 0.000023732, trend: "+"},
+            {level: "species", phylum: "Proteobacteria", family: null, genus: "Escherichia", species: "Escherichia coli", patient: 0.000090728, control: 0, trend: "+"},
+            {level: "species", phylum: "Proteobacteria", family: null, genus: "Klebsiella", species: "Klebsiella oxytoca", patient: 0.000550694, control: 0, trend: "+"},
+        ];
+
+        // ===== SPIEGAZIONI MODALI =====
+        const explanations = {
+            dysbiosis: {
+                title: "Livello di Disbiosi",
+                content: `<p><strong>Che cosa è?</strong> La disbiosi è uno squilibrio nella composizione del microbiota intestinale, dove alcuni batteri sono sovrarappresentati e altri sono sottorappresentati rispetto a un microbiota sano.</p>
+                <p><strong>Moderata (26%):</strong> Indica uno squilibrio significativo ma non grave. L'algoritmo di ricerca metagenomico valuta questa condizione in base alla distribuzione di taxa battericı.</p>
+                <p><strong>Implicazioni cliniche:</strong></p>
+                <ul>
+                    <li>Possibile alterazione della funzionalità intestinale</li>
+                    <li>Ridotta produzione di acidi grassi a catena corta (SCFA)</li>
+                    <li>Alterata barriera intestinale</li>
+                    <li>Potenziale aumento di infiammazione locale</li>
+                </ul>
+                <div class="modal-badge modal-warning">⚠️ Richiede monitoraggio medico</div>`
+            },
+            "taxa-plus": {
+                title: "Taxa Aumentati",
+                content: `<p><strong>Significato:</strong> Numero di unità tassonomiche batteriche (generi, specie o famiglie) la cui abbondanza nel paziente è <strong>superiore</strong> al gruppo di controllo.</p>
+                <p><strong>Valore: 36</strong> taxa sono aumentati nel microbiota di questo paziente.</p>
+                <p><strong>Interpretazione:</strong></p>
+                <ul>
+                    <li>Sovracrescita di determinati ceppi batterici</li>
+                    <li>Possibile sbilanciamento verso patobionti</li>
+                    <li>Richiedono ulteriore analisi per valutare l'effetto sulla salute</li>
+                </ul>
+                <p><strong>Esempio:</strong> Bacteroides (+), Prevotella copri (+), Escherichia (+)</p>`
+            },
+            "taxa-minus": {
+                title: "Taxa Ridotti",
+                content: `<p><strong>Significato:</strong> Numero di unità tassonomiche batteriche la cui abbondanza nel paziente è <strong>inferiore</strong> al gruppo di controllo.</p>
+                <p><strong>Valore: 22</strong> taxa sono ridotti nel microbiota di questo paziente.</p>
+                <p><strong>Interpretazione:</strong></p>
+                <ul>
+                    <li>Sottorappresentazione di batteri benefici (commensali)</li>
+                    <li>Possibile perdita di funzioni metaboliche importanti</li>
+                    <li>Ridotta protezione della barriera intestinale</li>
+                </ul>
+                <p><strong>Esempio:</strong> Actinobacteria (-), Collinsella (-), Ruminococcus (-)</p>`
+            },
+            "patient-id": {
+                title: "Informazioni Paziente",
+                content: `<p><strong>ID Paziente:</strong> 04093091</p>
+                <p><strong>Nome:</strong> La Grotteria Antonia</p>
+                <p><strong>Data di nascita:</strong> 05/08/1967</p>
+                <p><strong>Data referto:</strong> 13/01/2026</p>
+                <p><strong>Data accettazione campione:</strong> 23/12/2025</p>
+                <p><strong>Struttura:</strong> Ospedale Pediatrico Bambino Gesù - San Paolo, Roma</p>
+                <p><strong>Metodo:</strong> Next Generation Sequencing (NGS) 16S rRNA</p>`
+            },
+            "level-help": {
+                title: "Livelli Tassonomici",
+                content: `<p><strong>Cos'è la tassonomia batterica?</strong> È la classificazione gerarchica dei microorganismi.</p>
+                <p><strong>Livelli disponibili:</strong></p>
+                <ul>
+                    <li><strong>Phylum:</strong> Livello più generale (es. Bacteroidetes, Firmicutes) - ~4 categorie</li>
+                    <li><strong>Famiglia:</strong> Sottoclassificazione del phylum (es. Bacteroidaceae) - ~13 categorie</li>
+                    <li><strong>Genere:</strong> Sottoclassificazione della famiglia (es. Bacteroides) - ~34 categorie</li>
+                    <li><strong>Specie:</strong> Livello più specifico (es. Bacteroides ovatus) - ~54 categorie</li>
+                </ul>
+                <p><strong>Consiglio:</strong> Inizia da Phylum per vedere il quadro generale, poi approfondisci con Genere e Specie.</p>`
+            },
+            "trend-help": {
+                title: "Filtro Andamento",
+                content: `<p><strong>Cosa mostra:</strong> Il confronto dell'abbondanza di ogni taxon tra il paziente e i controlli.</p>
+                <ul>
+                    <li><strong>(+) Aumentati:</strong> L'abbondanza nel paziente è maggiore che nei controlli</li>
+                    <li><strong>(-) Ridotti:</strong> L'abbondanza nel paziente è minore che nei controlli</li>
+                    <li><strong>Tutti:</strong> Mostra sia taxa aumentati che ridotti</li>
+                </ul>
+                <p><strong>Utilità clinica:</strong> Identificare quali batteri sono sovrarappresentati (+) o sottorappresentati (-) rispetto a un microbiota sano.</p>`
+            },
+            "phylum-help": {
+                title: "Filtro Phylum",
+                content: `<p><strong>Cos'è un Phylum?</strong> Il livello più generale della classificazione batterica.</p>
+                <p><strong>Phyla principali intestinali:</strong></p>
+                <ul>
+                    <li><strong>Bacteroidetes:</strong> ~30% del microbiota sano, fermenta carboidrati</li>
+                    <li><strong>Firmicutes:</strong> ~60% del microbiota sano, produce SCFA</li>
+                    <li><strong>Actinobacteria:</strong> ~3% del microbiota sano, produce antibiotici naturali</li>
+                    <li><strong>Proteobacteria:</strong> <1% del microbiota sano, potenzialmente patogeni</li>
+                </ul>
+                <p><strong>Nota:</strong> Il rapporto Firmicutes/Bacteroidetes è spesso usato come indicatore di disbiosi.</p>`
+            },
+            "abundance-help": {
+                title: "Abbondanza Relativa",
+                content: `<p><strong>Cos'è l'abbondanza relativa?</strong> La percentuale di un particolare taxon rispetto al totale dei microrganismi rilevati.</p>
+                <p><strong>Espressione:</strong> Valori tra 0 e 1 (0 = assente, 1 = 100% della comunità)</p>
+                <p><strong>Esempio:</strong> Un valore di 0.2749503 significa che quel taxon rappresenta il 27.5% della comunità batterica totale.</p>
+                <p><strong>Filtro minimo:</strong> Permette di escludere taxa con abbondanza molto bassa (poco rilevanti clinicamente).</p>`
+            },
+            "comparison-chart": {
+                title: "Grafico Paziente vs Controlli",
+                content: `<p><strong>Cosa mostra:</strong> Il confronto diretto dell'abbondanza relativa di ogni taxon tra il paziente e il gruppo di controllo.</p>
+                <p><strong>Colori:</strong></p>
+                <ul>
+                    <li><strong>Verde:</strong> Abbondanza nel paziente</li>
+                    <li><strong>Blu:</strong> Abbondanza nei controlli</li>
+                </ul>
+                <p><strong>Interpretazione:</strong> Barre più lunghe in verde rispetto al blu = taxon aumentato. Viceversa = taxon ridotto.</p>
+                <p><strong>Utilità:</strong> Visualizzazione veloce degli sbilanciamenti più significativi.</p>`
+            },
+            "delta-chart": {
+                title: "Grafico Differenza (Δ)",
+                content: `<p><strong>Cosa mostra:</strong> La differenza assoluta (Paziente - Controlli) per ogni taxon.</p>
+                <p><strong>Colori:</strong></p>
+                <ul>
+                    <li><strong>Verde:</strong> Δ positivo (taxon aumentato nel paziente)</li>
+                    <li><strong>Rosso:</strong> Δ negativo (taxon ridotto nel paziente)</li>
+                </ul>
+                <p><strong>Interpretazione:</strong> Barre più lunghe a destra = maggiore aumento. Barre più lunghe a sinistra = maggiore riduzione.</p>
+                <p><strong>Utilità:</strong> Identificare rapidamente i taxa con lo sbilanciamento più significativo.</p>`
+            },
+            "col-phylum": {
+                title: "Colonna: Phylum",
+                content: `<p><strong>Definizione:</strong> Il phylum è il livello tassonomico più alto nella classificazione batterica.</p>
+                <p><strong>I 4 phyla principali nel microbiota intestinale:</strong></p>
+                <ul>
+                    <li>Bacteroidetes</li>
+                    <li>Firmicutes</li>
+                    <li>Actinobacteria</li>
+                    <li>Proteobacteria</li>
+                </ul>
+                <p><strong>Funzione:</strong> Fornisce il contesto metabolico e funzionale di tutti i taxa sottostanti.</p>`
+            },
+            "col-family": {
+                title: "Colonna: Famiglia",
+                content: `<p><strong>Definizione:</strong> La famiglia è un livello tassonomico intermedio, che raggruppa generi correlati.</p>
+                <p><strong>Esempio:</strong> La famiglia Bacteroidaceae contiene il genere Bacteroides.</p>
+                <p><strong>Utilità:</strong> Fornisce un livello di dettaglio intermedio tra phylum e genere.</p>`
+            },
+            "col-genus": {
+                title: "Colonna: Genere",
+                content: `<p><strong>Definizione:</strong> Il genere è una classificazione tassonomica intermedia, che raggruppa specie correlate.</p>
+                <p><strong>Esempio:</strong> Il genere Bacteroides contiene la specie Bacteroides ovatus.</p>
+                <p><strong>Utilità:</strong> Fornisce informazioni sui ceppi batterici specifici con proprietà funzionali definite.</p>`
+            },
+            "col-species": {
+                title: "Colonna: Specie",
+                content: `<p><strong>Definizione:</strong> La specie è il livello tassonomico più specifico nel microbiota.</p>
+                <p><strong>Esempio:</strong> Bacteroides ovatus è una specie specifica con funzioni metaboliche definite.</p>
+                <p><strong>Utilità:</strong> Consente l'identificazione più precisa dei ceppi batterici e delle loro proprietà cliniche.</p>`
+            },
+            "col-patient": {
+                title: "Colonna: Abbondanza Paziente",
+                content: `<p><strong>Significato:</strong> L'abbondanza relativa di questo taxon nel microbiota del paziente.</p>
+                <p><strong>Espressione:</strong> Valore decimale tra 0 e 1 (ad es. 0.2749503 = 27.5%)</p>
+                <p><strong>Interpretazione:</strong></p>
+                <ul>
+                    <li>Valori alti (>0.1) = taxon prevalente</li>
+                    <li>Valori bassi (<0.001) = taxon raro</li>
+                    <li>0 = totalmente assente nel paziente</li>
+                </ul>`
+            },
+            "col-control": {
+                title: "Colonna: Abbondanza Controlli",
+                content: `<p><strong>Significato:</strong> L'abbondanza relativa di questo taxon nel gruppo di controllo (microbiota sano).</p>
+                <p><strong>Espressione:</strong> Valore decimale tra 0 e 1</p>
+                <p><strong>Utilità:</strong> Consente il confronto diretto con un microbiota "normale" per identificare sbilanciamenti.</p>
+                <p><strong>Nota:</strong> Il gruppo di controllo rappresenta individui sani senza disbiosi.</p>`
+            },
+            "col-trend": {
+                title: "Colonna: Andamento",
+                content: `<p><strong>Significato:</strong> Indica se il taxon è aumentato (+) o diminuito (-) nel paziente rispetto ai controlli.</p>
+                <ul>
+                    <li><strong>(+)</strong> = Abbondanza paziente > Abbondanza controlli (sovracrescita)</li>
+                    <li><strong>(-)</strong> = Abbondanza paziente < Abbondanza controlli (deplezione)</li>
+                </ul>
+                <p><strong>Significato clinico:</strong> Aiuta a identificare rapidamente i taxa sbilanciati.</p>`
+            },
+            "col-delta": {
+                title: "Colonna: Δ (Delta)",
+                content: `<p><strong>Significato:</strong> La differenza assoluta tra l'abbondanza del paziente e quella dei controlli.</p>
+                <p><strong>Formula:</strong> Δ = Abbondanza Paziente - Abbondanza Controlli</p>
+                <p><strong>Interpretazione:</strong></p>
+                <ul>
+                    <li>Valori positivi = taxon aumentato nel paziente</li>
+                    <li>Valori negativi = taxon ridotto nel paziente</li>
+                    <li>Valori più alti (in valore assoluto) = sbilanciamenti più significativi</li>
+                </ul>`
+            },
+            "col-delta-pct": {
+                title: "Colonna: Δ % (Variazione Percentuale)",
+                content: `<p><strong>Significato:</strong> La variazione percentuale dell'abbondanza del paziente rispetto ai controlli.</p>
+                <p><strong>Formula:</strong> Δ % = (Δ / Abbondanza Controlli) × 100</p>
+                <p><strong>Interpretazione:</strong></p>
+                <ul>
+                    <li>Valori elevati (+300%, +500%) = aumento significativo nel paziente</li>
+                    <li>Valori negativi (-80%, -95%) = riduzione significativa nel paziente</li>
+                    <li>∞ = taxon assente nei controlli, presente nel paziente</li>
+                </ul>
+                <p><strong>Utilità:</strong> Consente il confronto relativo, utile per taxa con abbondanze molto diverse.</p>`
+            }
+        };
+
+        let comparisonChart = null;
+        let deltaChart = null;
+
+        function showModal(key) {
+            const exp = explanations[key];
+            if (!exp) return;
+            document.getElementById("modal-title").textContent = exp.title;
+            document.getElementById("modal-content").innerHTML = exp.content;
+            document.getElementById("modal-overlay").classList.add("active");
+        }
+
+        function closeModal(event) {
+            if (event && event.target !== document.getElementById("modal-overlay")) return;
+            document.getElementById("modal-overlay").classList.remove("active");
+        }
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") closeModal();
+        });
+
+        function initFilters() {
+            const phyla = [...new Set(microbiota.map(d => d.phylum))];
+            const phylumSelect = document.getElementById("phylum-filter");
+            phyla.forEach(p => {
+                const opt = document.createElement("option");
+                opt.value = p;
+                opt.textContent = p;
+                phylumSelect.appendChild(opt);
+            });
+
+            document.getElementById("taxa-plus").textContent = microbiota.filter(d => d.trend === "+").length;
+            document.getElementById("taxa-minus").textContent = microbiota.filter(d => d.trend === "-").length;
+        }
+
+        function getFilteredData() {
+            let level = document.getElementById("level-select").value;
+            let phylum = document.getElementById("phylum-filter").value;
+            let minAbundance = parseFloat(document.getElementById("min-abundance").value) || 0;
+            let trendAll = document.getElementById("trend-all").checked;
+            let trendPlus = document.getElementById("trend-plus").checked;
+            let trendMinus = document.getElementById("trend-minus").checked;
+
+            return microbiota.filter(d => {
+                if (d.level !== level) return false;
+                if (phylum && d.phylum !== phylum) return false;
+                if (d.patient < minAbundance) return false;
+                if (!trendAll) {
+                    if (d.trend === "+" && !trendPlus) return false;
+                    if (d.trend === "-" && !trendMinus) return false;
+                }
+                return true;
+            });
+        }
+
+        function getLabel(d) {
+            if (d.species) return d.species;
+            if (d.genus) return d.genus;
+            if (d.family) return d.family;
+            return d.phylum;
+        }
+
+        function updateChart() {
+            let data = getFilteredData();
+
+            if (data.length === 0) {
+                document.querySelector(".table-container tbody").innerHTML = '<tr><td colspan="9" class="no-data">Nessun dato per i filtri selezionati</td></tr>';
+                if (comparisonChart) comparisonChart.destroy();
+                if (deltaChart) deltaChart.destroy();
+                return;
+            }
+
+            data.sort((a, b) => Math.abs((b.patient - b.control)) - Math.abs((a.patient - a.control)));
+
+            let chartData = data.slice(0, 15);
+            let labels = chartData.map(getLabel);
+
+            if (comparisonChart) comparisonChart.destroy();
+            const ctx1 = document.getElementById("comparison-chart").getContext("2d");
+            comparisonChart = new Chart(ctx1, {
+                type: "bar",
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: "Paziente",
+                            data: chartData.map(d => d.patient),
+                            backgroundColor: "#22c55e",
+                            borderRadius: 4,
+                        },
+                        {
+                            label: "Controlli",
+                            data: chartData.map(d => d.control),
+                            backgroundColor: "#3b82f6",
+                            borderRadius: 4,
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: "bottom", labels: { color: "#cbd5e1", font: { size: 12 } } },
+                    },
+                    scales: {
+                        x: { ticks: { color: "#cbd5e1", font: { size: 11 } }, grid: { display: false } },
+                        y: { ticks: { color: "#cbd5e1", font: { size: 11 } }, grid: { color: "rgba(148, 163, 184, 0.1)" } },
+                    },
+                },
+            });
+
+            if (deltaChart) deltaChart.destroy();
+            const ctx2 = document.getElementById("delta-chart").getContext("2d");
+            let deltaColors = chartData.map(d => d.trend === "+" ? "#22c55e" : "#ef4444");
+            deltaChart = new Chart(ctx2, {
+                type: "bar",
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: "Δ (Paziente - Controlli)",
+                            data: chartData.map(d => d.patient - d.control),
+                            backgroundColor: deltaColors,
+                            borderRadius: 4,
+                        },
+                    ],
+                },
+                options: {
+                    indexAxis: "y",
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                    },
+                    scales: {
+                        x: { ticks: { color: "#cbd5e1", font: { size: 11 } }, grid: { color: "rgba(148, 163, 184, 0.1)" } },
+                        y: { ticks: { color: "#cbd5e1", font: { size: 11 } }, grid: { display: false } },
+                    },
+                },
+            });
+
+            const tbody = document.querySelector(".table-container tbody");
+            tbody.innerHTML = data.map((d, idx) => `
+                <tr onclick="showModal('row-${idx}'); explanations['row-${idx}'] = {title: 'Dettaglio: ' + (d.species || d.genus || d.family || d.phylum), content: '<p><strong>Phylum:</strong> ${d.phylum}</p><p><strong>Famiglia:</strong> ${d.family || '-'}</p><p><strong>Genere:</strong> ${d.genus || '-'}</p><p><strong>Specie:</strong> ${d.species || '-'}</p><p><strong>Abbondanza Paziente:</strong> ${d.patient.toFixed(6)} (${(d.patient * 100).toFixed(2)}%)</p><p><strong>Abbondanza Controlli:</strong> ${d.control.toFixed(6)} (${(d.control * 100).toFixed(2)}%)</p><p><strong>Differenza (Δ):</strong> ${(d.patient - d.control).toFixed(6)}</p><p><strong>Variazione %:</strong> ${d.control > 0 ? (((d.patient - d.control) / d.control * 100).toFixed(1) + '%') : '∞'}</p><p><strong>Andamento:</strong> ${d.trend === '+' ? '✅ Aumentato (sovracrescita)' : '⚠️ Ridotto (deplezione)'}</p>'}">
+                    <td>${d.phylum}</td>
+                    <td>${d.family || "-"}</td>
+                    <td>${d.genus || "-"}</td>
+                    <td>${d.species || "-"}</td>
+                    <td>${d.patient.toFixed(6)}</td>
+                    <td>${d.control.toFixed(6)}</td>
+                    <td><span class="trend-badge ${d.trend === "+" ? "trend-up" : "trend-down"}">${d.trend}</span></td>
+                    <td>${(d.patient - d.control).toFixed(6)}</td>
+                    <td>${d.control > 0 ? (((d.patient - d.control) / d.control * 100).toFixed(1) + "%") : "∞"}</td>
+                </tr>
+            `).join("");
+        }
+
+        function toggleSection(header) {
+            const content = header.nextElementSibling;
+            const icon = header.querySelector(".toggle-icon");
+            content.classList.toggle("open");
+            icon.classList.toggle("open");
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            initFilters();
+            document.getElementById("level-select").addEventListener("change", updateChart);
+            updateChart();
+
+            // Auto-open first analysis section
+            const firstSection = document.querySelector(".section-content");
+            if (firstSection) {
+                firstSection.classList.add("open");
+                firstSection.previousElementSibling.querySelector(".toggle-icon").classList.add("open");
+            }
+        });
+
+        // Extend explanations with clinical details
+        Object.assign(explanations, {
+            "analysis-dysbiosis": {
+                title: "Disbiosi Moderata (26%)",
+                content: `<p><strong>Cosa significa?</strong> Un algoritmo metagenomico ha quantificato lo squilibrio della composizione batterica. 26% indica un'alterazione significativa ma non estrema.</p>
+                <p><strong>Valori normali:</strong> 0-5% (microbiota sano)</p>
+                <p><strong>Scala di gravità:</strong></p>
+                <ul>
+                    <li>Lieve: 5-10%</li>
+                    <li>Moderata: 10-25% ← PAZIENTE ATTUALE (26%)</li>
+                    <li>Severa: 25-50%</li>
+                    <li>Critica: >50%</li>
+                </ul>
+                <p><strong>Cosa comporta?</strong> Alterazione della barriera intestinale, ridotta produzione di nutrienti microbici (SCFA), possibile infiammazione cronica, sintomi intestinali (gonfiore, irregolarità).</p>
+                <p><strong>Cause probabili:</strong> Alimentazione, stress, infezioni precedenti, uso di antibiotici.</p>`
+            },
+            "analysis-ratio": {
+                title: "Rapporto Firmicutes/Bacteroidetes",
+                content: `<p><strong>Cos'è?</strong> Il rapporto tra i due phyla dominanti nel microbiota intestinale. È un indicatore di salute generale.</p>
+                <p><strong>Valore nel paziente:</strong> 1:42 (praticamente tutto Bacteroidetes, quasi nessun Firmicutes)</p>
+                <p><strong>Valori normali:</strong></p>
+                <ul>
+                    <li>Sano: 1:1 a 1:3 (Firmicutes dominante)</li>
+                    <li>Disbiosi lieve: 1:5 a 1:10</li>
+                    <li>Disbiosi moderata: 1:15 a 1:40 ← PAZIENTE (1:42)</li>
+                    <li>Disbiosi severa: >1:50</li>
+                </ul>
+                <p><strong>Significato clinico:</strong> Questo squilibrio estremo è una dei marker più importanti di disbiosi. La perdita di Firmicutes ha conseguenze severe sulla salute intestinale.</p>`
+            },
+            "analysis-scfa": {
+                title: "Produzione SCFA (Short-Chain Fatty Acids)",
+                content: `<p><strong>Cosa sono gli SCFA?</strong> Acidi grassi a catena corta (butirrato, propionato, acetato) prodotti dalla fermentazione batterica. Sono il 'nutrimento' principale delle cellule intestinali.</p>
+                <p><strong>Cosa produce SCFA?</strong> Principalmente Firmicutes (Ruminococcus, Roseburia, Faecalibacterium). Ridotti nel paziente = SCFA ridotto.</p>
+                <p><strong>Importanza:</strong></p>
+                <ul>
+                    <li>Energia per colonociti (cellule intestinali)</li>
+                    <li>Mantiene pH intestinale acido (antimicrobico)</li>
+                    <li>Regola sistema immunitario intestinale</li>
+                    <li>Riduce infiammazione sistemica</li>
+                    <li>Regola assorbimento nutrienti</li>
+                </ul>
+                <p><strong>Nel paziente:</strong> Con Firmicutes ridotti, la produzione di SCFA è compromessa. Questo spiega possibile debolezza della barriera intestinale.</p>`
+            },
+            "analysis-pathobionts": {
+                title: "Proteobatteri - Patobionti Potenziali",
+                content: `<p><strong>Cosa sono i Proteobatteri?</strong> Gram-negativi, principalmente Enterobacteriaceae (E. coli, Klebsiella, Enterobacter). Normali in piccole quantità (<1%), critici se aumentati.</p>
+                <p><strong>Nel paziente:</strong> Escherichia coli 0.009%, Klebsiella 0.073%, insieme >10x il normale.</p>
+                <p><strong>Cosa producono?</strong></p>
+                <ul>
+                    <li><strong>LPS (lipopolisaccaride):</strong> Endotossina, trigger infiammatorio potente</li>
+                    <li><strong>Etanolamma e altri:</strong> Molecole pro-infiammatorie</li>
+                    <li>Potenziale occlusione intestinale se non controllati</li>
+                </ul>
+                <p><strong>Cosa comporta?</strong> Possibile sindrome metabolica, infiammazione cronica, aumento permeabilità intestinale (leaky gut).</p>
+                <p><strong>Cosa fare:</strong> Controllare con dieta, probiotici competitor, evitare trigger (stress, infezioni, farmaci non necessari).</p>`
+            },
+            "analysis-benefici": {
+                title: "Actinobacteria - Batteri Protettivi Quasi Assenti",
+                content: `<p><strong>Cosa sono?</strong> Phylum con proprietà antimicrobiche naturali. Principalmente Bifidobacterium, Collinsella, Eggerthella.</p>
+                <p><strong>Nel paziente:</strong> 0.08% vs 3.9% controllo = -97.8%. QUASI COMPLETAMENTE ASSENTI.</p>
+                <p><strong>Cosa producono?</strong></p>
+                <ul>
+                    <li><strong>Lantibiotici:</strong> Simili a defensine, uccidono patogeni</li>
+                    <li><strong>Vitamine B:</strong> Folato, biotina, B12 (importanti per energia)</li>
+                    <li><strong>Molecole immunomodulatrici:</strong> Educano sistema immunitario intestinale</li>
+                </ul>
+                <p><strong>Conseguenze della loro assenza:</strong> Perdita di protezione contro patogeni, possibile colonizzazione da patobionti, ridotta produzione di vitamine B.</p>
+                <p><strong>Priority #1:</strong> Ripristinare Actinobacteria è CRITICO. Usare probiotici Bifidobacterium e alimentare con inulina/FOS.</p>`
+            },
+            "analysis-butyrate": {
+                title: "Produttori di Butirrato - Ruolo Essenziale",
+                content: `<p><strong>Cosa è il butirrato?</strong> SCFA principale, essenziale per salute intestinale. Prodotto principalmente da Ruminococcus e Roseburia.</p>
+                <p><strong>Nel paziente:</strong></p>
+                <ul>
+                    <li>Ruminococcus: 0.9% vs 4.9% (−81%)</li>
+                    <li>Roseburia: Alcuni presenti ma insufficienti</li>
+                </ul>
+                <p><strong>Funzioni del butirrato:</strong></p>
+                <ul>
+                    <li>Energia primaria per colonociti (90% della loro energia viene dal butirrato)</li>
+                    <li>Regola tight junctions (giunture tra cellule intestinali)</li>
+                    <li>Inibisce infiammazione (via HDAC e GPR43)</li>
+                    <li>Promuove mucosa robusta</li>
+                    <li>Anti-tumorale (previene cancro colorettale)</li>
+                </ul>
+                <p><strong>Conseguenza della carenza:</strong> Mucosa intestinale debole, aumento permeabilità, infiammazione cronica, sintomi intestinali frequenti.</p>
+                <p><strong>Come ripristinare:</strong> Prebiotici (inulina), Ruminococcus probiotico, Roseburia probiotico.</p>`
+            },
+            "taxa-bacteroides": {
+                title: "Bacteroides - Sovracrescita Patologica",
+                content: `<p><strong>Nel paziente:</strong> 27.5% vs controllo 12.8% = +114% (DOPPIO)</p>
+                <p><strong>Cosa fa Bacteroides?</strong> Fermenta carboidrati, produce acetato (SCFA moderato), normalmente sano in equilibrio.</p>
+                <p><strong>Quando diventa problematico?</strong></p>
+                <ul>
+                    <li>In sovracrescita (come qui), compete per risorse</li>
+                    <li>Associato a infiammazione intestinale cronica</li>
+                    <li>Correlato con malattie infiammatorie intestinali (IBD) se mal controllato</li>
+                    <li>Dieta ricca di grassi/carboidrati semplici favorisce crescita</li>
+                </ul>
+                <p><strong>Come ridurre:</strong> Eliminare zuccheri semplici, aumentare fibre solubili (favoriscono Firmicutes), usare probiotici competitor (Roseburia, Faecalibacterium).</p>`
+            },
+            "taxa-prevotella": {
+                title: "Prevotella copri - Marker di Infiammazione",
+                content: `<p><strong>Nel paziente:</strong> 16.9% vs controllo 3.5% = +383% (QUINTUPLICATO!)</p>
+                <p><strong>Significato:</strong> Prevotella copri è stato associato a:</p>
+                <ul>
+                    <li>Artrite reumatoide (RA) - marker predittivo</li>
+                    <li>Infiammazione articolare cronica</li>
+                    <li>Infiammazione intestinale</li>
+                    <li>Diete ricche di carboidrati (pasta, riso, pane)</li>
+                </ul>
+                <p><strong>Studi recenti:</strong> P. copri in eccesso è correlato a disbiosi pro-infiammatoria. Se paziente ha dolori articolari/infiammatori, questo spiega MOLTO.</p>
+                <p><strong>Come ridurre:</strong> Dieta mediterranea (grassi buoni, proteine magre), eliminare carboidrati raffinati, aumentare polifenoli (antiossidanti).</p>`
+            },
+            "taxa-actino": {
+                title: "Actinobacteria - Protezione Compromessa",
+                content: `<p><strong>Nel paziente:</strong> 0.08% vs controllo 3.9% = −97.8% (QUASI ASSENTI!)</p>
+                <p><strong>Questo è il PROBLEMA PIÙ CRITICO del microbiota.</strong></p>
+                <p><strong>Cosa significa?</strong> La perdita quasi totale di Actinobacteria rappresenta una perdita massiccia di protezione naturale intestinale.</p>
+                <p><strong>Conseguenze immediate:</strong></p>
+                <ul>
+                    <li>Nessuna produzione di lantibiotici (defensine)</li>
+                    <li>Nessuna barriera antimicrobica naturale</li>
+                    <li>Spazio libero per patobionti (E. coli, Klebsiella)</li>
+                    <li>Ridotta produzione vitamine B</li>
+                    <li>Perdita di immunomodulazione</li>
+                </ul>
+                <p><strong>Priority #1 ASSOLUTA:</strong> Ripristinare Actinobacteria con Bifidobacterium probiotico + inulina/FOS prebiotico.</p>`
+            },
+            "taxa-ruminococcus": {
+                title: "Ruminococcus - Produttore di Butirrato Assente",
+                content: `<p><strong>Nel paziente:</strong> 0.9% vs controllo 4.9% = −81% (QUASI SPARITO)</p>
+                <p><strong>Questo è CRITICO #2.</strong></p>
+                <p><strong>Ruminococcus è il produttore PRINCIPALE di butirrato.</strong> Con il 81% di riduzione, la produzione di butirrato è gravemente compromessa.</p>
+                <p><strong>Conseguenze:</strong></p>
+                <ul>
+                    <li>Colonociti mal nutriti (hanno bisogno di butirrato)</li>
+                    <li>Mucosa intestinale debole e permeabile</li>
+                    <li>Aumento infiammazione intestinale</li>
+                    <li>Sintomi: gonfiore, irregolarità intestinale, perdita di energia</li>
+                </ul>
+                <p><strong>Come ripristinare:</strong> Prebiotici resistenti (patate fredde, riso freddo), probiotici Ruminococcus faecis, fibre solubili (inulina, FOS).</p>`
+            },
+            "taxa-firmicutes": {
+                title: "Firmicutes Totali - Phylum Protettivo Ridotto",
+                content: `<p><strong>Nel paziente:</strong> 1.2% vs controllo 1.9% = −35% (INSUFFICIENTE)</p>
+                <p><strong>Firmicutes normali:</strong> 50-60% del microbiota sano</p>
+                <p><strong>Nel paziente:</strong> Sono letteralmente SCOMPARSI, rimane solo 1.2%!</p>
+                <p><strong>Perché è critico?</strong> Firmicutes sono i produttori principali di SCFA, soprattutto butirrato. Globalmente, questa riduzione massiccia è causa principale della disbiosi.</p>
+                <p><strong>Il paradosso:</strong> Il paziente ha anche Bacteroidetes molto alto. Questo significa la perdita di Firmicutes, non una semplice sovracrescita di Bacteroidetes, bensì una SOSTITUZIONE quasi completa.</p>
+                <p><strong>Come ripristinare:</strong> Questa è una battaglia difficile. Serve combinazione di: (1) Prebiotici mirati a Firmicutes, (2) Probiotici Firmicutes selezionati, (3) Riduzione stress, (4) Sonno regolare, (5) Attività fisica.</p>`
+            },
+            "taxa-proteobacteria": {
+                title: "Proteobacteria - Esplosione Infiammatoria",
+                content: `<p><strong>Nel paziente:</strong> 0.07% vs controllo 0.001% = +5,570% (!!!!)</p>
+                <p><strong>Questo è il più grande aumento relativo osservato!</strong></p>
+                <p><strong>Cosa significa?</strong> Proteobatteri sono gram-negativi, producono LPS (endotossina), massicciamente infiammatori.</p>
+                <p><strong>Composizione nel paziente:</strong></p>
+                <ul>
+                    <li>Escherichia coli 0.009%</li>
+                    <li>Klebsiella 0.073%</li>
+                    <li>Enterobacter</li>
+                    <li>Shigella</li>
+                </ul>
+                <p><strong>Conseguenze:</strong> Potenziale "leaky gut", translocation di LPS (endotossemia), infiammazione sistemica, possibili reazioni autoimmuni.</p>
+                <p><strong>Monitorare:</strong> Livelli di LPS e calprotectina fecale. Se elevati, considerare antibiotici selettivi o phage therapy (ricerca nuova).</p>`
+            }
+        });
+    </script>
+</body>
+</html>
